@@ -29,7 +29,7 @@ export class RollController {
   async updateRoll(request: Request, response: Response, next: NextFunction) {
     const { body: params } = request
 
-    this.rollRepository.findOne(params.id).then((roll) => {
+    await this.rollRepository.findOne(params.id).then((roll) => {
       const updateRollInput: UpdateRollInput = {
         id: params.id,
         name: params.name,
@@ -62,7 +62,7 @@ export class RollController {
       studentRollState.prepareToCreate(createStudentRollStateInput)
       return studentRollState
     })
-
+    console.log(studentRollStates)
     return this.studentRollStateRepository.save(studentRollStates)
   }
 
@@ -82,7 +82,7 @@ export class RollController {
   async updateStudentRollState(request: Request, response: Response, next: NextFunction) {
     const { body: params } = request
 
-    this.studentRollStateRepository.findOne(params.id).then((studentRollState) => {
+    await this.studentRollStateRepository.findOne(params.id).then((studentRollState) => {
       const updateStudentRollStateInput: UpdateStudentRollStateInput = {
         id: params.id,
         roll_id: params.roll_id,
