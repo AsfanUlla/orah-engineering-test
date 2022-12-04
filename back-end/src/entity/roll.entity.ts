@@ -9,7 +9,9 @@ export class Roll {
   @Column()
   name: string
 
-  @Column()
+  @Column({
+    nullable: true,
+  })
   completed_at: Date
 
   public prepareToCreate(input: CreateRollInput) {
