@@ -2,11 +2,18 @@ import { NextFunction, Request, Response } from "express"
 import { getRepository } from "typeorm"
 import { Group } from "../entity/group.entity"
 import { GroupStudent } from "../entity/group-student.entity"
+import { Roll } from "../entity/roll.entity"
+import { StudentRollState } from "../entity/student-roll-state.entity"
 import { CreateGroupInput, UpdateGroupInput } from "../interface/group.interface"
+import { map, countBy} from "lodash"
+import { CreateGroupStudentInput } from "../interface/group-student.interface"
+
 
 export class GroupController {
   private groupRepository = getRepository(Group)
   private groupStudentRepository = getRepository(GroupStudent)
+  private rollRepository = getRepository(Roll)
+  private studentRollStateRepository = getRepository(StudentRollState)
 
   async allGroups(request: Request, response: Response, next: NextFunction) {
     // Task 1: 
@@ -65,7 +72,8 @@ export class GroupController {
   async getGroupStudents(request: Request, response: Response, next: NextFunction) {
     // Task 1: 
         
-    // Return the list of Students that are in a Group
+    return this.groupStudentRepository.find()
+    
   }
 
 
@@ -73,9 +81,87 @@ export class GroupController {
     // Task 2:
   
     // 1. Clear out the groups (delete all the students from the groups)
-
+    await this.groupStudentRepository.clear()
+   
+    
     // 2. For each group, query the student rolls to see which students match the filter for the group
+    const groups = await this.groupRepository.find()
+    const groupData: [] = map(groups, (group) => {
+      const Groups: UpdateGroupInput = {
+        id: group.id,
+        name: group.name,
+        number_of_weeks: group.number_of_weeks,
+        roll_states: group.roll_states,
+        incidents: group.incidents,
+        ltmt: group.ltmt
+      }
+      return Groups
+    })
+    
+    groupData.forEach(async (group) => {
+      const fromDate: Date = new Date(Date.now() - (7*group["number_of_weeks"]) * 24 * 60 * 60 * 1000)
+      const rolls = await this.rollRepository
+                        .createQueryBuilder("roll")
+                        .where("completed_at >= :cursor", { cursor: fromDate.toISOString() })
+                        .getMany()
+      const rollIds = rolls.map((obj) => obj["id"])
+      const studentsRollStates = await this.studentRollStateRepository
+                                    .createQueryBuilder('studentroll')
+                                    .where("roll_id IN (:...rollIds) AND state = :state", 
+                                            { 
+                                              rollIds: rollIds, 
+                                              state: group["roll_states"]
+                                            }
+                                          )
+                                    .getMany()
+      
+      const studentStatesCount = countBy(studentsRollStates, "student_id")
+      let GroupStudents = []
+      if (group["ltmt"] == ">"){
+        Object.keys(studentStatesCount)
+          .forEach(
+            (v) => {
+              if(studentStatesCount[v] > group["incidents"]){
+                GroupStudents.push(
+                  {
+                    "student_id": v,
+                    "group_id": group["id"],
+                    "incident_count": studentStatesCount[v]
+                  }
+                )
+              }
+            }
+          )
+      } else if(group["ltmt"] == "<"){
+        Object.keys(studentStatesCount)
+        .forEach(
+          (v) => {
+            if(studentStatesCount[v] < group["incidents"]){
+              GroupStudents.push(
+                {
+                  "student_id": v,
+                  "group_id": group["id"],
+                  "incident_count": studentStatesCount[v]
+                }
+              )
+            }
+          }
+        )
+      }
+      
+      // 3. Add the list of students that match the filter to the group
+      if (GroupStudents != undefined || GroupStudents.length != 0) {
+        await this.groupStudentRepository.save(GroupStudents)
+        await this.groupRepository.save(
+          {
+            "id": group["id"],
+            "run_at": new Date().toISOString(),
+            "student_count": GroupStudents.length
+          }
+        )
+      }
 
-    // 3. Add the list of students that match the filter to the group
+    })
+    return { "success": true }
   }
 }
