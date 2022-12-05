@@ -113,7 +113,7 @@ export const Routes = [
   },
   {
     method: "post",
-    route: "group/run-group-filters",
+    route: "/group/run-group-filters",
     controller: GroupController,
     action: "runGroupFilters"
   }
