@@ -62,7 +62,6 @@ export class RollController {
       studentRollState.prepareToCreate(createStudentRollStateInput)
       return studentRollState
     })
-    console.log(studentRollStates)
     return this.studentRollStateRepository.save(studentRollStates)
   }
 
