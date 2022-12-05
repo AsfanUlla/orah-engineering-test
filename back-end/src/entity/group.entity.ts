@@ -26,7 +26,9 @@ export class Group {
   })
   run_at: Date
 
-  @Column()
+  @Column({
+    nullable: true,
+  })
   student_count: number
 
   public prepareToCreate(input: CreateGroupInput) {
