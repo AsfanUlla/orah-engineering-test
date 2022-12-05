@@ -6,7 +6,6 @@ import { Roll } from "../entity/roll.entity"
 import { StudentRollState } from "../entity/student-roll-state.entity"
 import { CreateGroupInput, UpdateGroupInput } from "../interface/group.interface"
 import { map, countBy} from "lodash"
-import { CreateGroupStudentInput } from "../interface/group-student.interface"
 
 
 export class GroupController {
