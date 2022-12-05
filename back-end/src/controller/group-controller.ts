@@ -47,7 +47,7 @@ export class GroupController {
     
     const { body: params } = request
 
-    await this.groupRepository.findOne(params.id).then((group) => {
+    return await this.groupRepository.findOne(params.id).then((group) => {
       const updateGroupInput: UpdateGroupInput = {
         id: params.id,
         name: params.name,
@@ -64,11 +64,12 @@ export class GroupController {
 
   async removeGroup(request: Request, response: Response, next: NextFunction) {
     // Task 1: 
-    
-    let groupToRemove = await this.groupRepository.findOne(request.params.id)
-    await this.groupRepository.remove(groupToRemove).then(() => {
-      return { "success": true }
-    })
+    const { body: params } = request
+    let groupToRemove = await this.groupRepository.findOne(params.id)
+    if(groupToRemove !== undefined){
+      await this.groupRepository.remove(groupToRemove)
+    }
+    return { "success": true }
   }
 
   async getGroupStudents(request: Request, response: Response, next: NextFunction) {

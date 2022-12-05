@@ -29,7 +29,7 @@ export class RollController {
   async updateRoll(request: Request, response: Response, next: NextFunction) {
     const { body: params } = request
 
-    await this.rollRepository.findOne(params.id).then((roll) => {
+    return await this.rollRepository.findOne(params.id).then((roll) => {
       const updateRollInput: UpdateRollInput = {
         id: params.id,
         name: params.name,
@@ -41,8 +41,12 @@ export class RollController {
   }
 
   async removeRoll(request: Request, response: Response, next: NextFunction) {
-    let rollToRemove = await this.rollRepository.findOne(request.params.id)
-    await this.rollRepository.remove(rollToRemove)
+    const { body: params } = request
+    let rollToRemove = await this.rollRepository.findOne(params.id)
+    if (rollToRemove !== undefined){
+      await this.rollRepository.remove(rollToRemove)
+    }
+    return { "success": true }
   }
 
   async getRoll(request: Request, response: Response, next: NextFunction) {
@@ -81,7 +85,7 @@ export class RollController {
   async updateStudentRollState(request: Request, response: Response, next: NextFunction) {
     const { body: params } = request
 
-    await this.studentRollStateRepository.findOne(params.id).then((studentRollState) => {
+    return await this.studentRollStateRepository.findOne(params.id).then((studentRollState) => {
       const updateStudentRollStateInput: UpdateStudentRollStateInput = {
         id: params.id,
         roll_id: params.roll_id,

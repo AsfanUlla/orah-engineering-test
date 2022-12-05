@@ -27,7 +27,7 @@ export class StudentController {
   async updateStudent(request: Request, response: Response, next: NextFunction) {
     const { body: params } = request
 
-    await this.studentRepository.findOne(params.id).then((student) => {
+    return await this.studentRepository.findOne(params.id).then((student) => {
       const updateStudentInput: UpdateStudentInput = {
         id: params.id,
         first_name: params.first_name,
@@ -41,7 +41,11 @@ export class StudentController {
   }
 
   async removeStudent(request: Request, response: Response, next: NextFunction) {
-    let studentToRemove = await this.studentRepository.findOne(request.params.id)
-    await this.studentRepository.remove(studentToRemove)
+    const { body: params } = request
+    let studentToRemove = await this.studentRepository.findOne(params.id)
+    if(studentToRemove !== undefined){
+      await this.studentRepository.remove(studentToRemove)
+    }
+    return { "success": true }
   }
 }
