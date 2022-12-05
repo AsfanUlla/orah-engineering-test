@@ -21,3 +21,9 @@ export interface UpdateGroupInput {
     incidents: number
     ltmt: LTMT
 }
+
+export interface UpdateGroupMeta {
+    id: number,
+    run_at: string,
+    student_count: number
+}
