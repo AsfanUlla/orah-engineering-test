@@ -4,8 +4,9 @@ import { Group } from "../entity/group.entity"
 import { GroupStudent } from "../entity/group-student.entity"
 import { Roll } from "../entity/roll.entity"
 import { StudentRollState } from "../entity/student-roll-state.entity"
-import { CreateGroupInput, UpdateGroupInput } from "../interface/group.interface"
-import { map, countBy} from "lodash"
+import { CreateGroupInput, UpdateGroupInput, UpdateGroupMeta } from "../interface/group.interface"
+import { map, chain, flattenDeep} from "lodash"
+import { GroupStudentInput } from "../interface/group-student.interface"
 
 
 export class GroupController {
@@ -85,24 +86,16 @@ export class GroupController {
     
     // 2. For each group, query the student rolls to see which students match the filter for the group
     const groups = await this.groupRepository.find()
-    const groupData: [] = map(groups, (group) => {
-      const Groups: UpdateGroupInput = {
-        id: group.id,
-        name: group.name,
-        number_of_weeks: group.number_of_weeks,
-        roll_states: group.roll_states,
-        incidents: group.incidents,
-        ltmt: group.ltmt
-      }
-      return Groups
-    })
-    
-    groupData.forEach(async (group) => {
+
+    let GroupStudents = []
+    let GroupMeta = []
+    for (let group of groups){
+
       const fromDate: Date = new Date(Date.now() - (7*group["number_of_weeks"]) * 24 * 60 * 60 * 1000)
       const rolls = await this.rollRepository
-                        .createQueryBuilder("roll")
-                        .where("completed_at >= :cursor", { cursor: fromDate.toISOString() })
-                        .getMany()
+                      .createQueryBuilder("roll")
+                      .where("completed_at >= :cursor", { cursor: fromDate.toISOString() })
+                      .getMany()
       const rollIds = rolls.map((obj) => obj["id"])
       const studentsRollStates = await this.studentRollStateRepository
                                     .createQueryBuilder('studentroll')
@@ -113,54 +106,41 @@ export class GroupController {
                                             }
                                           )
                                     .getMany()
+       
+      const incidentFilter = chain(studentsRollStates)
+                              .countBy("student_id")
+                              .pickBy((value) => {
+                                if (group["ltmt"] == ">"){
+                                  if(value > group["incidents"]) return value
+                                } else if (group["ltmt"] == "<"){
+                                  if(value < group["incidents"]) return value
+                                }
+                              })
+                              .value()
       
-      const studentStatesCount = countBy(studentsRollStates, "student_id")
-      let GroupStudents = []
-      if (group["ltmt"] == ">"){
-        Object.keys(studentStatesCount)
-          .forEach(
-            (v) => {
-              if(studentStatesCount[v] > group["incidents"]){
-                GroupStudents.push(
-                  {
-                    "student_id": v,
-                    "group_id": group["id"],
-                    "incident_count": studentStatesCount[v]
-                  }
-                )
-              }
-            }
-          )
-      } else if(group["ltmt"] == "<"){
-        Object.keys(studentStatesCount)
-        .forEach(
-          (v) => {
-            if(studentStatesCount[v] < group["incidents"]){
-              GroupStudents.push(
-                {
-                  "student_id": v,
-                  "group_id": group["id"],
-                  "incident_count": studentStatesCount[v]
-                }
-              )
-            }
-          }
-        )
-      }
-      
-      // 3. Add the list of students that match the filter to the group
-      if (GroupStudents != undefined || GroupStudents.length != 0) {
-        await this.groupStudentRepository.save(GroupStudents)
-        await this.groupRepository.save(
-          {
-            "id": group["id"],
-            "run_at": new Date().toISOString(),
-            "student_count": GroupStudents.length
-          }
-        )
+      const groupStudenObject: [] = map(incidentFilter, (value, key) => {
+        const groupStudentInput: GroupStudentInput = {
+          student_id: key,
+          group_id: group["id"],
+          incident_count: value
+        }
+        return groupStudentInput
+      })
+
+      GroupStudents.push(groupStudenObject)
+
+      const updateGroupMeta: UpdateGroupMeta = {
+        id: group.id,
+        run_at: new Date().toISOString(),
+        student_count: groupStudenObject.length
       }
 
-    })
-    return { "success": true }
+      GroupMeta.push(updateGroupMeta)
+    }
+
+    // 3. Update Group Srudent and Group Meta
+    await this.groupStudentRepository.save(flattenDeep(GroupStudents))
+    return await this.groupRepository.save(GroupMeta)
+    //return { "success": true }
   }
 }
