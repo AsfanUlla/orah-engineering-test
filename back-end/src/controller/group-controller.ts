@@ -7,6 +7,7 @@ import { StudentRollState } from "../entity/student-roll-state.entity"
 import { CreateGroupInput, UpdateGroupInput, UpdateGroupMeta } from "../interface/group.interface"
 import { map, chain, flattenDeep} from "lodash"
 import { GroupStudentInput } from "../interface/group-student.interface"
+import { Student } from "../entity/student.entity"
 
 
 export class GroupController {
@@ -14,6 +15,7 @@ export class GroupController {
   private groupStudentRepository = getRepository(GroupStudent)
   private rollRepository = getRepository(Roll)
   private studentRollStateRepository = getRepository(StudentRollState)
+  private studentRepository = getRepository(Student)
 
   async allGroups(request: Request, response: Response, next: NextFunction) {
     // Task 1: 
@@ -72,8 +74,20 @@ export class GroupController {
   async getGroupStudents(request: Request, response: Response, next: NextFunction) {
     // Task 1: 
         
-    return this.groupStudentRepository.find()
-    
+    const GroupStudents = await this.groupStudentRepository.find()
+    const studentIds = GroupStudents.map((obj) => obj.student_id)
+    const students = await this.studentRepository
+                        .createQueryBuilder()
+                        .where("id IN (:...id)", { id: studentIds })
+                        .getMany()
+    return map(students, (student) => {
+      return {
+        id: student.id,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        full_name: student.first_name + " " + student.last_name
+      }
+    })
   }
 
 
